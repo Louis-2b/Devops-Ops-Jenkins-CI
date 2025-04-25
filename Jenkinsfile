@@ -5,7 +5,7 @@ pipeline {
         maven "MAVEN3.9"
     }	
     
-    environmen {
+    environment {
         SNAP_REPO = 'tubie-ops-snapshot'
         NEXUS_USER = 'admin'
         NEXUS_PASS = 'adminuser'
