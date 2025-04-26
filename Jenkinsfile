@@ -12,7 +12,7 @@ pipeline {
     environment {
         SNAP_REPO = 'tubie-ops-snapshot'        // Dépôt Nexus pour les snapshots
         NEXUS_USER = 'admin'                    // Utilisateur Nexus
-        NEXUS_PASS = credentials('nexus-creds') // Mot de passe Nexus (meilleure pratique: utiliser credentials)
+        NEXUS_PASS = 'adminuser'                // Mot de passe Nexus
         RELEASE_REPO = 'tubie-ops-release'      // Dépôt Nexus pour les releases
         CENTRAL_REPO = 'tubie-maven-central'    // Dépôt central Maven
         NEXUSIP = 'nexus.tubie.devops.ops'      // IP/hostname du serveur Nexus
