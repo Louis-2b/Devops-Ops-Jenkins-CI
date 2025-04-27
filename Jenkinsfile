@@ -161,6 +161,38 @@ pipeline {
                 }
             }
         }
+
+        /*
+         * [12] ÉTAPE UPLOAD ARTIFACT - DÉPLOIEMENT VERS NEXUS
+         * Téléverse l'artefact généré vers le repository Nexus
+         */
+        stage("Upload Artifact") {
+            steps {
+                nexusArtifactUploader(
+                  // Configuration de base de Nexus
+                  nexusVersion: 'nexus3',                                    // Version de Nexus (2 ou 3)
+                  protocol: 'http',                                          // Protocole (http/https)
+                  nexusUrl: "${NEXUSIP}:${NEXUSPORT}",                       // URL de Nexus (variables d'environnement)
+                  
+                  // Métadonnées de l'artefact
+                  groupId: 'QA',                                             // Groupe Maven (organisation)
+                  version: "${env.BUILD_ID}-${env.BUILD_TIMESTAMP}",         // Version unique basée sur l'ID et timestamp du build
+                  repository: "${RELEASE_REPO}",                             // Dépôt cible (variable d'environnement)
+                  credentialsId: "${NEXUS_LOGIN}",                           // Identifiant des credentials stockés dans Jenkins
+                  
+                  /*
+                   * Liste des artefacts à uploader
+                   * Ici nous uploadons un seul fichier .war
+                   */
+                  artifacts: [
+                    [artifactId: 'tubie-ops-app',                            // ID de l'artefact
+                     classifier: '',                                         // Classifieur (optionnel)
+                     file: 'target/vprofile-v2.war',                         // Chemin du fichier à uploader
+                     type: 'war']                                            // Type d'artefact (extension)
+                  ]
+                )
+            }
+        }
     }
 }
 
