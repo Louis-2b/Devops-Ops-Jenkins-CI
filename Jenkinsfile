@@ -1,14 +1,27 @@
+/*
+ * [1] DÉCLARATION DU PIPELINE
+ * Définit un pipeline Jenkins qui s'exécutera sur un agent spécifique
+ */
 pipeline {
-    // Spécifie l'agent Jenkins où s'exécutera le pipeline
-    agent { label 'jenkins_agent' }  // nom du label de ton agent
+    /*
+     * [2] CONFIGURATION DE L'AGENT
+     * Spécifie que le pipeline s'exécutera sur un nœud Jenkins avec le label 'jenkins_agent'
+     */
+    agent { label 'jenkins_agent' }
 
-    // Configure les outils nécessaires pour le pipeline
+    /*
+     * [3] CONFIGURATION DES OUTILS
+     * Définit les outils nécessaires qui doivent être préconfigurés dans Jenkins
+     */
     tools {
-        jdk "JDK17"  // Utilise JDK version 17
-        maven "MAVEN3.9"  // Utilise Maven version 3.9
+        jdk "JDK17"  // Requiert JDK 17 configuré dans "Manage Jenkins > Global Tool Configuration"
+        maven "MAVEN3.9"  // Requiert Maven 3.9 configuré de la même manière
     }	
     
-    // Définit les variables d'environnement pour tout le pipeline
+    /*
+     * [4] VARIABLES D'ENVIRONNEMENT
+     * Variables disponibles dans tout le pipeline
+     */
     environment {
         // Configuration Nexus
         SNAP_REPO = 'tubie-ops-snapshot'        // Dépôt Nexus pour les snapshots
@@ -26,43 +39,74 @@ pipeline {
         SONARSCANNER = 'sonarscanner'           // Nom du scanner Sonar configuré dans Jenkins
     }
     
-    // Définit les étapes du pipeline
+    /*
+     * [5] ÉTAPES DU PIPELINE
+     * Contient toutes les étapes d'exécution séquentielles
+     */
     stages {
-        // Étape 1: Compilation du code
+        /*
+         * [6] ÉTAPE BUILD - COMPILATION
+         * Compile le code source et génère les artefacts
+         */
         stage('Build') {
             steps {
-            // Exécute Maven avec:
-            // - settings.xml personnalisé
-            // - Skip (Ignore) les tests (mais compilation maintenue)
+            /*
+             * Commande Maven:
+             * - -s settings.xml : utilise un fichier de configuration Maven personnalisé
+             * - -DskipTests : compile mais n'exécute pas les tests
+             * - install : installe l'artefact dans le repository local
+             */
              sh 'mvn -s settings.xml -DskipTests install'    
             }
-        
+            
+            /*
+             * [7] POST-ACTIONS DU BUILD
+             * Actions exécutées après l'étape de build selon son statut
+             */
             post {
                 success {
                     echo "Build réussi - Archivage des artefacts..."
-                    // Archive les fichiers .war générés
+                    // Archive tous les fichiers .war trouvés dans l'espace de travail
                     archiveArtifacts artifacts: '**/*.war'
                 }
             }
         }
         
-        // Étape 2: Exécution des tests unitaires
+        /*
+         * [8] ÉTAPE TEST - TESTS UNITAIRES
+         * Exécute les tests unitaires et génère des rapports
+         */
         stage('Test') {
             steps {
-                // Exécute les tests unitaires
+                /*
+                 * Commande Maven:
+                 * - test : exécute les tests unitaires
+                 * - -s settings.xml : utilise la configuration personnalisée
+                 * Génère des rapports dans target/surefire-reports/
+                 */
                 sh 'mvn -s settings.xml test'
             }
         }
         
-        // Étape 3: Analyse de qualité du code
+        /*
+         * [9] ÉTAPE CHECKSTYLE - ANALYSE DE CODE
+         * Vérifie la conformité du code aux standards
+         */
         stage('Checkstyle Analysis') {
             steps {
-                // Exécute l'analyse Checkstyle
+                /*
+                 * Commande Maven:
+                 * - checkstyle:checkstyle : exécute l'analyse Checkstyle
+                 * Génère un rapport dans target/checkstyle-result.xml
+                 */
                 sh 'mvn -s settings.xml checkstyle:checkstyle'
             }
         }
 
-        // Étape 4: SonarQube - Analyse statique approfondie
+        /*
+         * [10] ÉTAPE SONARQUBE - ANALYSE STATIQUE AVANCÉE
+         * Effectue une analyse approfondie de la qualité du code
+         */
         stage('SonarQube analysis') {
             environment {
                 /*
@@ -72,6 +116,10 @@ pipeline {
                 scannerHome = tool "${SONARSCANNER}"
             }
             steps {
+                /*
+                 * Configure l'environnement SonarQube avec les credentials
+                 * "${SONARSERVER}" doit correspondre à une configuration serveur dans Jenkins
+                 */
                 withSonarQubeEnv("${SONARSERVER}") {
                     /*
                      * Exécute le scanner Sonar avec les paramètres:
@@ -91,6 +139,25 @@ pipeline {
                     -Dsonar.junit.reportsPath=target/surefire-reports/ \
                     -Dsonar.jacoco.reportsPath=target/jacoco.exec \
                     -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml'''
+                }
+            }
+        }
+
+        /*
+         * [11] ÉTAPE QUALITY GATE - VALIDATION DE LA QUALITÉ
+         * Attend et vérifie les résultats du Quality Gate de SonarQube
+         */
+        stage("Quality Gate") {
+            steps {
+                /*
+                 * Définit un timeout de 1 heure pour éviter des attentes infinies
+                 * waitForQualityGate vérifie le statut de l'analyse SonarQube:
+                 * - abortPipeline: true => Arrête le pipeline si échec au Quality Gate
+                 */
+                timeout(time: 1, unit: 'HOURS') {
+                    // Le paramètre indique s'il faut définir le pipeline sur INSTABLE en cas d'échec de Quality Gate
+                    // true = définir le pipeline sur INSTABLE, false = ne pas le faire
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
