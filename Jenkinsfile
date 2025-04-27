@@ -1,4 +1,13 @@
 /*
+ * [0] VARIABLE GLOBALE - MAPPAGE DES COULEURS SLACK
+ * Définit un mapping entre les résultats de build et les couleurs Slack
+ */
+def COLOR_MAP = [
+    'SUCCESS': 'good',    // Couleur verte dans Slack pour les succès
+    'FAILURE': 'danger',  // Couleur rouge dans Slack pour les échecs
+]
+
+/*
  * [1] DÉCLARATION DU PIPELINE
  * Définit un pipeline Jenkins qui s'exécutera sur un agent spécifique
  */
@@ -192,6 +201,23 @@ pipeline {
                   ]
                 )
             }
+        }
+    }
+
+    /*
+     * [13] POST-ACTIONS GLOBALES
+     * Exécutées après toutes les étapes, quel que soit le résultat
+     */
+    post {
+        always {
+            /*
+             * Notification Slack - toujours envoyée
+             * Utilise le plugin Slack Notification
+             */
+            echo 'Slack Notifications.'
+            slackSend channel: '#jenkinscicd',  // Canal Slack cible
+                color: COLOR_MAP[currentBuild.currentResult],  // Couleur selon le résultat
+                message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}"
         }
     }
 }
